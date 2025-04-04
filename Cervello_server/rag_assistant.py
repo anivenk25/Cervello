@@ -23,8 +23,11 @@ from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from threading import Thread
 import time
+from dotenv import load_dotenv
 
-openai.api_key = ""
+load_dotenv()
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 vector_dim = 384  # depends on model
 
