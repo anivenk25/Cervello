@@ -1,0 +1,8 @@
+openai
+faiss-cpu
+pathway
+fastapi
+sentence-transformers
+uvicorn
+pydantic
+
