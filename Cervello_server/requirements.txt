@@ -1,8 +1,9 @@
-pandas
 openai
 faiss-cpu
 pathway
+pandas
+numpy
 fastapi
-sentence-transformers
-uvicorn
 pydantic
+sentence-transformers
+uvicorn[standard]
