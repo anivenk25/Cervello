@@ -6,3 +6,4 @@ fastapi
 sentence-transformers
 uvicorn
 pydantic
+qdrant-client
