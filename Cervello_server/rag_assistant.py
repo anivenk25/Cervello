@@ -7,8 +7,8 @@ from uuid import uuid4
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
+import time
 
-# --- ENVIRONMENT SETUP ---
 load_dotenv()
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -60,6 +60,17 @@ def query_llm(q: Query):
     # Prepare prompt for OpenAI
     prompt = f"Answer the question using only the context below:\n\n{context_text}\n\nQuestion: {question}\nAnswer:"
 
+    points=[]
+    for que in q.question:
+        embedding = embedding_model.encode([que])[0].tolist()
+        points.append(
+            PointStruct(
+                id=str(uuid4()),
+                vector=embedding,
+                payload={"text": que, "id": que},
+            )
+        )
+
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -67,11 +78,26 @@ def query_llm(q: Query):
                 {"role": "user", "content": prompt}
             ]
         )
-        return {"answer": response.choices[0].message.content.strip()}
+        required_ans=response.choices[0].message.content.strip()
+        ans_points=[]
+
+        embedding = embedding_model.encode([required_ans])[0].tolist()
+        timestamp = str(int(time.time()))
+        time_id = timestamp
+        ans_points.append(
+            PointStruct(
+                id=str(uuid4()),
+                vector=embedding,
+                payload={"text": required_ans, "id": time_id},
+            )
+        )
+        # print(ans_points)
+        qdrant_client.upsert(collection_name=qdrant_collection, points=ans_points)
+        return {"answer": required_ans, "points": ans_points, "text":required_ans, "id": time_id}
     except Exception as e:
         return {"error": str(e)}
 
-# --- TEST DATA UPLOAD ENDPOINT ---
+# testing endpoint
 @app.post("/upload")
 def upload_data(data: list[dict]):
     """
@@ -88,6 +114,6 @@ def upload_data(data: list[dict]):
                 payload={"text": item["text"], "id": item["id"]},
             )
         )
-
+    # print(points)
     qdrant_client.upsert(collection_name=qdrant_collection, points=points)
     return {"message": "Data uploaded successfully."}
