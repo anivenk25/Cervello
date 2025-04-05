@@ -34,41 +34,46 @@ export default function Register() {
   // If currently checking authentication status, show loading
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0e17]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3b82f6]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 border border-black/[.06] dark:border-white/[.08]">
-        <div className="text-center mb-8">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0e17] font-[family-name:var(--font-geist-sans)] bg-gradient-to-br from-[#0a0e17] to-[#111827]">
+      <div className="w-full max-w-md bg-[#111827] rounded-xl shadow-lg shadow-[#3b82f6]/10 p-4 sm:p-8 border border-[#2d3748]">
+        <div className="text-center mb-6 sm:mb-8">
           <Link href="/" className="inline-block">
             <div className="flex items-center justify-center">
-              <div className="relative h-10 w-10 mr-2">
+              <div className="relative h-8 w-8 sm:h-10 sm:w-10 mr-2">
                 <Image 
                   src="/logo.svg" 
                   alt="Logo" 
                   fill 
-                  className="object-contain"
+                  className="object-contain invert" // Invert logo color for dark theme
                   priority
                 />
               </div>
-              <h1 className="text-2xl font-bold">Pathway RAG</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">Q&A Assistant</h1>
             </div>
           </Link>
-          <h2 className="text-xl font-semibold mt-8 mb-2">Create an Account</h2>
-          <p className="text-gray-500 dark:text-gray-400">Join us to get personalized answers</p>
+          
+          <div className="mt-6 sm:mt-8 mb-2">
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Create an Account</h2>
+            <div className="h-1 w-16 bg-gradient-to-r from-[#3b82f6] to-[#60a5fa] mx-auto mt-2"></div>
+          </div>
+          
+          <p className="text-sm sm:text-base text-white/60">Join us to get personalized answers</p>
         </div>
         
         <div className="mt-6">
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            className="w-full rounded-lg border border-black/[.08] dark:border-white/[.08] transition-colors flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 font-medium h-12 px-6"
+            className="w-full rounded-lg border border-[#2d3748] transition-colors flex items-center justify-center bg-[#1e293b] hover:bg-[#1e293b]/80 text-white font-medium h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base"
           >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -91,27 +96,46 @@ export default function Register() {
           </button>
         </div>
         
-        <div className="mt-6 text-center text-sm">
-          <p className="text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
-            <Link href="/auth/login" className="text-blue-600 dark:text-blue-400 hover:underline">
-              Sign in
-            </Link>
-          </p>
+        <div className="relative mt-8 sm:mt-10 mb-4 sm:mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#2d3748]"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-2 text-xs text-white/40 bg-[#111827]">Or sign in if you have an account</span>
+          </div>
         </div>
+        
+        <Link
+          href="/auth/login"
+          className="w-full rounded-lg border border-[#3b82f6]/30 transition-colors flex items-center justify-center bg-transparent hover:bg-[#3b82f6]/10 text-white font-medium h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base text-center"
+        >
+          Sign in
+        </Link>
       </div>
       
-      <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+      <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-white/50 max-w-md px-2">
         <p>
           By creating an account, you agree to our{' '}
-          <Link href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <Link href="/terms" className="text-[#3b82f6] hover:text-[#60a5fa] hover:underline">
             Terms of Service
           </Link>{' '}
           and{' '}
-          <Link href="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <Link href="/privacy" className="text-[#3b82f6] hover:text-[#60a5fa] hover:underline">
             Privacy Policy
           </Link>
         </p>
+      </div>
+      
+      <div className="mt-6 sm:mt-8">
+        <Link 
+          href="/" 
+          className="text-white/60 hover:text-[#3b82f6] transition-colors flex items-center text-sm"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to home
+        </Link>
       </div>
     </div>
   );
