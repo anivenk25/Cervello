@@ -4,35 +4,34 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Query from '@/models/query';
 import UserPreference from '@/models/userPreference';
-import OpenAI from 'openai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Helper function to fetch answer from OpenAI
+// Helper function to fetch answer from local LLM
 async function fetchFromOpenAI(question, userRole) {
   try {
-    const systemPrompt = `You are a helpful assistant. Answer as if the user is a ${userRole}.`;
+    // const systemPrompt = `You are a helpful assistant. Answer as if the user is a ${userRole}.`;
+    const fullPrompt = `${question}`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', // or 'gpt-4' if available and desired
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: question }
-      ],
-      temperature: 0.7,
+    const res = await fetch('http://127.0.0.1:8000/llm-query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: fullPrompt }),
     });
 
-    const answer = response.choices[0].message.content || 'No response received.';
+    if (!res.ok) {
+      throw new Error(`Local LLM API error: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    const answer = data.response || 'No response received.';
 
     return {
       answer,
-      sources: [], // Optional: include sources if you do RAG
+      sources: [], // Optional: include sources if using RAG
     };
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('Local LLM API error:', error);
     throw error;
   }
 }
@@ -68,6 +67,7 @@ export async function POST(request) {
       const openAIResponse = await fetchFromOpenAI(question, session.user.role);
 
       const { answer, sources } = openAIResponse;
+      console.log(answer);
       const processingTime = Date.now() - startTime;
 
       await Query.findByIdAndUpdate(newQuery._id, {
