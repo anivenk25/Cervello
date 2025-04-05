@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import time
 from fastapi import HTTPException
 from qdrant_client.http.models import PointIdsList
+from controllers import fetch_context
 
 
 load_dotenv()
@@ -18,6 +19,12 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 qdrant_url = os.getenv("QDRANT_HOST")
 qdrant_key = os.getenv("QDRANT_API_KEY")
 qdrant_collection = "my_collection"
+
+from pydantic import BaseModel
+
+class PromptRequest(BaseModel):
+    prompt: str
+
 
 # --- EMBEDDING MODEL ---
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -37,7 +44,61 @@ if not qdrant_client.collection_exists(qdrant_collection):
     )
 
 # --- FASTAPI SERVER ---
+
+from fastapi import HTTPException
+
+
 app = FastAPI()
+
+@app.post("/llm-query")
+def fetch_with_context(request: PromptRequest):
+    try:
+        prompt = request.prompt
+        prompt_vector = embedding_model.encode(prompt).tolist()
+
+        # 1. Search top 10 similar embeddings
+        search_result = qdrant_client.search(
+            collection_name=qdrant_collection,
+            query_vector=prompt_vector,
+            limit=10
+        )
+
+        # 2. Build context
+        context_snippets = [hit.payload.get("text", "") for hit in search_result]
+        context = "\n".join(context_snippets)
+
+        # 3. Final prompt
+        final_prompt = f"{context}\n\nUser: {prompt}\nAssistant:"
+
+        # 4. Call OpenAI
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You're an assistant."},
+                {"role": "user", "content": final_prompt},
+            ]
+        )
+
+        # 5. Add new embedding to vector DB
+        qdrant_client.upsert(
+            collection_name=qdrant_collection,
+            points=[
+                PointStruct(
+                    id=str(uuid4()),
+                    vector=prompt_vector,
+                    payload={"text": prompt}
+                )
+            ]
+        )
+
+        # 6. Return OpenAI-style response
+        return {"response": response.choices[0].message.content.strip()}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# app.include_router(fetch_context.router)
 
 class Query(BaseModel):
     question: str
