@@ -1,9 +1,8 @@
-openai
-faiss-cpu
-pathway
-pandas
-numpy
 fastapi
-pydantic
-sentence-transformers
 uvicorn[standard]
+openai
+sentence-transformers
+qdrant-client
+python-dotenv
+pydantic
+numpy

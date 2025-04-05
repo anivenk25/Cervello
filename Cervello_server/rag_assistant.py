@@ -1,111 +1,252 @@
-# Real-time RAG Q&A Assistant using Pathway
-
-# Assumptions:
-# - Real-time data is streamed from a simulated support ticket system (CSV updates)
-# - Vector store is in-memory using FAISS
-# - LLM used is OpenAI (replace with other APIs if needed)
-# - REST API built using FastAPI
-# - Simple CLI or web interface
-
-# Required libraries:
-# pathway, fastapi, openai, faiss-cpu, pydantic, uvicorn, watchdog, sentence-transformers
-
-# --- SETUP ---
-
-import os
-import openai
-import faiss
-import pathway as pw
-import pandas as pd
-import numpy as np
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-from threading import Thread
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct, VectorParams, Distance
+from uuid import uuid4
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
 import time
+from fastapi import HTTPException
+from qdrant_client.http.models import PointIdsList
+from controllers import fetch_context
 
-openai.api_key = ""
+
+load_dotenv()
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
+qdrant_url = os.getenv("QDRANT_HOST")
+qdrant_key = os.getenv("QDRANT_API_KEY")
+qdrant_collection = "my_collection"
+
+from pydantic import BaseModel
+
+class PromptRequest(BaseModel):
+    prompt: str
+
+
+# --- EMBEDDING MODEL ---
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-vector_dim = 384  # depends on model
+vector_dim = 384  # for all-MiniLM-L6-v2
 
-index = faiss.IndexFlatL2(vector_dim)
-doc_store = []  # list of (text, metadata)
+# --- QDRANT SETUP ---
+qdrant_client = QdrantClient(
+    url=qdrant_url,
+    api_key=qdrant_key,
+)
 
-# --- PATHWAY INGESTION PIPELINE ---
-
-def run_pathway_stream():
-    class SupportTicketSchema(pw.Schema):
-        text: str
-        id: int
-
-    data_stream = pw.io.csv.read("support_data.csv", schema=SupportTicketSchema, mode="streaming")
-
-    @pw.udf
-    def process_and_store(text: str, id: int) -> str:
-        embedding = embedding_model.encode([text])[0]
-        index.add(np.array([embedding]))
-        doc_store.append((text, {"id": id}))
-        return "stored"
-
-    processed = data_stream.select(
-        result=process_and_store(pw.this.text, pw.this.id)
+# Create the collection if it doesn't exist
+if not qdrant_client.collection_exists(qdrant_collection):
+    qdrant_client.create_collection(
+        collection_name=qdrant_collection,
+        vectors_config=VectorParams(size=vector_dim, distance=Distance.COSINE),
     )
-
-    pw.io.jsonlines.write(processed, "processed_output.jsonl")
-    pw.run()
-
-# Run Pathway pipeline in a background thread
-thread = Thread(target=run_pathway_stream, daemon=True)
-thread.start()
 
 # --- FASTAPI SERVER ---
 
+from fastapi import HTTPException
+
+
 app = FastAPI()
+
+@app.post("/llm-query")
+def fetch_with_context(request: PromptRequest):
+    try:
+        prompt = request.prompt
+        prompt_vector = embedding_model.encode(prompt).tolist()
+
+        # 1. Search top 10 similar embeddings
+        search_result = qdrant_client.search(
+            collection_name=qdrant_collection,
+            query_vector=prompt_vector,
+            limit=10
+        )
+
+        # 2. Build context
+        context_snippets = [hit.payload.get("text", "") for hit in search_result]
+        context = "\n".join(context_snippets)
+
+        # 3. Final prompt
+        final_prompt = f"{context}\n\nUser: {prompt}\nAssistant:"
+
+        # 4. Call OpenAI
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You're an assistant."},
+                {"role": "user", "content": final_prompt},
+            ]
+        )
+
+        # 5. Add new embedding to vector DB
+        qdrant_client.upsert(
+            collection_name=qdrant_collection,
+            points=[
+                PointStruct(
+                    id=str(uuid4()),
+                    vector=prompt_vector,
+                    payload={"text": prompt}
+                )
+            ]
+        )
+
+        # 6. Return OpenAI-style response
+        return {"response": response.choices[0].message.content.strip()}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# app.include_router(fetch_context.router)
 
 class Query(BaseModel):
     question: str
 
+client = OpenAI(api_key=openai_api_key)
+
 @app.post("/query")
 def query_llm(q: Query):
     question = q.question
-    question_vec = embedding_model.encode([question])[0]
+    question_vec = embedding_model.encode([question])[0].tolist()
 
-    D, I = index.search(np.array([question_vec]), k=3)
-    context_chunks = [doc_store[i][0] for i in I[0] if i < len(doc_store)]
+    # Search in Qdrant
+    search_result = qdrant_client.search(
+        collection_name=qdrant_collection,
+        query_vector=question_vec,
+        limit=3,
+    )
+
+    # Extract context from search results
+    context_chunks = [hit.payload["text"] for hit in search_result]
     context_text = "\n".join(context_chunks)
 
+    # Prepare prompt for OpenAI
     prompt = f"Answer the question using only the context below:\n\n{context_text}\n\nQuestion: {question}\nAnswer:"
+    timestamp = str(int(time.time()))
+    time_id = timestamp
+    points=[]
+    embedding = embedding_model.encode([q.question])[0].tolist()
+    points.append(
+        PointStruct(
+            id=str(uuid4()),
+            vector=embedding,
+            payload={"text": q.question, "id": time_id},
+        )
+    )
 
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "user", "content": prompt}
             ]
         )
-        return {"answer": response.choices[0].message.content.strip()}
+        required_ans=response.choices[0].message.content.strip()
+        ans_points=[]
+
+        embedding = embedding_model.encode([required_ans])[0].tolist()
+        
+        ans_points.append(
+            PointStruct(
+                id=str(uuid4()),
+                vector=embedding,
+                payload={"text": required_ans, "id": time_id},
+            )
+        )
+        # print(ans_points)
+        qdrant_client.upsert(collection_name=qdrant_collection, points=ans_points)
+        return {"answer": required_ans, "points": ans_points, "text":required_ans, "id": time_id}
     except Exception as e:
         return {"error": str(e)}
 
-# --- WATCHDOG FOR SIMULATED FILE STREAM (Optional) ---
-# This can be used to simulate new data being added to CSV for testing
-# In production, use real connectors to email, Slack, etc.
+# testing endpoint
+@app.post("/upload")
+def upload_data(data: list[dict]):
+    """
+    Upload data to Qdrant collection.
+    Expected input: [{"text": "sample text", "id": 1}, ...]
+    """
+    points = []
+    for item in data:
+        embedding = embedding_model.encode([item["text"]])[0].tolist()
+        points.append(
+            PointStruct(
+                id=str(uuid4()),
+                vector=embedding,
+                payload={"text": item["text"], "id": item["id"]},
+            )
+        )
+    # print(points)
+    qdrant_client.upsert(collection_name=qdrant_collection, points=points)
+    return {"message": "Data uploaded successfully."}
 
-# --- FRONTEND (OPTIONAL) ---
-# Simple CLI or React UI can call the `/query` endpoint
-# Skipped here for brevity
 
-# --- HOW TO RUN ---
-# 1. Set OPENAI_API_KEY as env variable
-# 2. Prepare `support_data.csv` with initial rows: id,text columns
-# 3. Run: uvicorn <filename_without_py>.app --reload
-# 4. POST to /query with {"question": "your question here"}
-# 5. Add new rows to CSV to simulate real-time updates
+# Similarity threshold for update/delete
+SIMILARITY_THRESHOLD = 0.90
 
-# --- TODO ---
-# - Add document deletion support in FAISS and Pathway
-# - Use persistent vector DB (e.g., Qdrant, Weaviate)
-# - Add Slack connector for input/output
-# - Add fallback mechanism for OpenAI API failures
-# - Deploy with Docker and include live demo video script
+@app.post("/update")
+def update_entry(new_data: dict):
+    """
+    Update the closest existing entry in Qdrant if similarity > threshold.
+    Input: {"text": "new text", "id": "optional_custom_id"}
+    """
+    new_text = new_data["text"]
+    new_id = new_data.get("id", str(uuid4()))
+    new_vec = embedding_model.encode([new_text])[0].tolist()
 
+    # Search for similar entry
+    results = qdrant_client.search(
+        collection_name=qdrant_collection,
+        query_vector=new_vec,
+        limit=1,
+        with_vectors=False,
+        with_payload=True,
+    )
+
+    if not results:
+        raise HTTPException(status_code=404, detail="No similar entry found.")
+
+    similarity = results[0].score
+    old_id = results[0].id
+
+    if similarity >= SIMILARITY_THRESHOLD:
+        # Update by replacing the old point with new payload/vector
+        new_point = PointStruct(
+            id=old_id,  # Keep the same ID to overwrite
+            vector=new_vec,
+            payload={"text": new_text, "id": new_id}
+        )
+        qdrant_client.upsert(collection_name=qdrant_collection, points=[new_point])
+        return {"message": "Entry updated.", "old_id": old_id, "new_id": new_id, "similarity": similarity}
+    else:
+        return {"message": "No similar entry above threshold.", "similarity": similarity}
+
+@app.post("/delete")
+def delete_entry_by_similarity(data: dict):
+    """
+    Delete the most similar entry to the input if similarity > threshold.
+    Input: {"text": "text to match and delete"}
+    """
+    text = data["text"]
+    vec = embedding_model.encode([text])[0].tolist()
+
+    results = qdrant_client.search(
+        collection_name=qdrant_collection,
+        query_vector=vec,
+        limit=1,
+        with_vectors=False,
+        with_payload=True,
+    )
+
+    if not results:
+        raise HTTPException(status_code=404, detail="No similar entry found.")
+
+    similarity = results[0].score
+    target_id = results[0].id
+
+    if similarity >= SIMILARITY_THRESHOLD:
+        qdrant_client.delete(collection_name=qdrant_collection, points_selector=PointIdsList(points=[target_id]))
+        return {"message": "Entry deleted.", "id": target_id, "similarity": similarity}
+    else:
+        return {"message": "No similar entry above threshold.", "similarity": similarity}
