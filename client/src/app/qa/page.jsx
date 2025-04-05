@@ -214,7 +214,7 @@ export default function QAPage() {
         <main className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-gray-900">
           <div className="max-w-4xl mx-auto">
             {/* Connection status indicator */}
-            {connectionStatus !== 'connected' && (
+            {process.env.NODE_ENV !== 'development' && connectionStatus !== 'connected' && (
               <div className="mb-2 text-xs text-center">
                 <span className={`inline-flex items-center px-2 py-1 rounded-full ${
                   connectionStatus === 'reconnecting' 
