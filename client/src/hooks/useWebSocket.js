@@ -1,112 +1,82 @@
 'use client';
 
-import { useContext, useEffect, useCallback, useState } from 'react';
+import { useContext, useEffect, useCallback, useState, useMemo } from 'react';
 import { WebSocketContext } from '@/context/WebSocketProvider';
 
-/**
- * Enhanced hook for WebSocket functionality with topic-specific message filtering
- * and automatic reconnection handling
- * 
- * @param {Object} options Configuration options
- * @param {Array|string} options.topics Topics to filter messages by
- * @param {Function} options.onMessage Callback for handling incoming messages
- * @param {boolean} options.autoSubscribe Whether to automatically subscribe to topics
- * @returns {Object} WebSocket state and enhanced methods
- */
 export function useWebSocket(options = {}) {
   const {
     topics = [],
     onMessage = null,
-    autoSubscribe = true
+    autoSubscribe = true,
   } = options;
-  
+
   const context = useContext(WebSocketContext);
-  const [filteredMessages, setFilteredMessages] = useState([]);
   const [lastMessage, setLastMessage] = useState(null);
-  
+
   if (context === undefined) {
     throw new Error('useWebSocket must be used within a WebSocketProvider');
   }
-  
-  // Convert topics to array if string is provided
-  const topicsArray = Array.isArray(topics) ? topics : [topics].filter(Boolean);
-  
-  // Subscribe to topics on mount if autoSubscribe is true
+
+  // ✅ Memoize topicsArray
+  const topicsArray = useMemo(() => (
+    Array.isArray(topics) ? topics : [topics].filter(Boolean)
+  ), [topics]);
+
+  // ✅ Subscribe/Unsubscribe on mount/unmount
   useEffect(() => {
     if (autoSubscribe && topicsArray.length > 0 && context.isConnected) {
       context.subscribe(topicsArray);
-      
-      // Unsubscribe on unmount
       return () => {
         context.unsubscribe(topicsArray);
       };
     }
-  }, [context, topicsArray, autoSubscribe]);
-  
-  // Filter messages based on topics
-  useEffect(() => {
-    if (!topicsArray.length) {
-      setFilteredMessages(context.messages);
-      return;
-    }
-    
-    const filtered = context.messages.filter(message => {
-      // If message has a topic field, check if it matches any of our topics
-      if (message.topic) {
-        return topicsArray.includes(message.topic);
-      }
-      
-      // If message has data with topic field, check that
-      if (message.data?.topic) {
-        return topicsArray.includes(message.data.topic);
-      }
-      
-      // Otherwise, include all messages when no specific topics are requested
-      return topicsArray.length === 0;
+  }, [context, topicsArray, autoSubscribe, context.isConnected]);
+
+  // ✅ Memoize filtered messages
+  const filteredMessages = useMemo(() => {
+    if (!topicsArray.length) return context.messages;
+
+    return context.messages.filter((message) => {
+      if (message.topic) return topicsArray.includes(message.topic);
+      if (message.data?.topic) return topicsArray.includes(message.data.topic);
+      return false;
     });
-    
-    setFilteredMessages(filtered);
-    
-    // Set last message if we have any messages
-    if (filtered.length > 0) {
-      const lastMsg = filtered[filtered.length - 1];
-      setLastMessage(lastMsg);
-      
-      // Call onMessage callback if provided
-      if (onMessage && typeof onMessage === 'function') {
-        onMessage(lastMsg, filtered);
-      }
+  }, [context.messages, topicsArray]);
+
+  // ✅ Effect to handle message callback and last message
+  useEffect(() => {
+    if (filteredMessages.length === 0) return;
+
+    const lastMsg = filteredMessages[filteredMessages.length - 1];
+    setLastMessage(lastMsg);
+
+    if (onMessage && typeof onMessage === 'function') {
+      onMessage(lastMsg, filteredMessages);
     }
-  }, [context.messages, topicsArray, onMessage]);
-  
-  // Enhanced send message function that automatically adds topic
+  }, [filteredMessages, onMessage]);
+
+  // ✅ Enhanced message sender
   const sendTopicMessage = useCallback((data, specificTopic = null) => {
     const topic = specificTopic || (topicsArray.length > 0 ? topicsArray[0] : null);
-    
-    if (!topic) {
-      return context.sendMessage(data);
-    }
-    
-    return context.sendMessage({
-      ...data,
-      topic
-    });
+    if (!topic) return context.sendMessage(data);
+
+    return context.sendMessage({ ...data, topic });
   }, [context, topicsArray]);
-  
-  // Get connection status with more details
-  const connectionStatus = useCallback(() => {
+
+  // ✅ Stable connection status
+  const connectionStatus = useMemo(() => {
     if (context.isConnected) return 'connected';
     if (context.reconnecting) return 'reconnecting';
     return 'disconnected';
   }, [context.isConnected, context.reconnecting]);
-  
+
   return {
     ...context,
     messages: filteredMessages,
     lastMessage,
     sendTopicMessage,
-    connectionStatus: connectionStatus(),
-    isSubscribed: topicsArray.length > 0 && context.isConnected
+    connectionStatus,
+    isSubscribed: topicsArray.length > 0 && context.isConnected,
   };
 }
 

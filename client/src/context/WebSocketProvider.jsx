@@ -20,6 +20,12 @@ export const WebSocketProvider = ({ children }) => {
   const connectToWebSocket = useCallback(() => {
     // Only connect if user is authenticated
     if (!isAuthenticated) return;
+
+    if (process.env.NODE_ENV === 'development' && 
+      (process.env.NEXT_PUBLIC_DISABLE_WEBSOCKET === 'true' || !process.env.NEXT_PUBLIC_PATHWAY_WEBSOCKET_URL)) {
+    console.log('WebSocket connections disabled in development. Set NEXT_PUBLIC_DISABLE_WEBSOCKET to "false" to enable.');
+    return null;
+  }
     
     try {
       // Use the WebSocket URL from environment variables or fallback to constructed URL
@@ -95,9 +101,10 @@ export const WebSocketProvider = ({ children }) => {
   
   // Initialize connection
   useEffect(() => {
+    if (!isAuthenticated || !connectToWebSocket) return;
+    
     const ws = connectToWebSocket();
     
-    // Clean up on unmount
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -106,7 +113,7 @@ export const WebSocketProvider = ({ children }) => {
         disconnectWebSocket(ws);
       }
     };
-  }, [connectToWebSocket]);
+  }, [isAuthenticated, connectToWebSocket]); // Ensure connectToWebSocket is stable
   
   // Send a message through WebSocket
   const sendMessage = useCallback((data) => {
