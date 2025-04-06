@@ -28,11 +28,12 @@ async function dbConnect() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      dbName: 'ISM'  // Explicitly specify database name
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts)
       .then((mongoose) => {
-        console.log('Connected to MongoDB successfully!');
+        console.log('Connected to MongoDB (ISM database) successfully!');
         return mongoose;
       })
       .catch((error) => {
@@ -51,7 +52,7 @@ let clientPromise;
 const getMongoClient = async () => {
   try {
     await dbConnect();
-    // @ts-ignore
+    // Make sure to get the client with the correct database
     clientPromise = mongoose.connection.getClient();
     return clientPromise;
   } catch (error) {
