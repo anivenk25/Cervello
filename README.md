@@ -1,4 +1,4 @@
-# Cervello# 🔍 AI-Powered Real-Time RAG System with Ticketing and Multimodal Support
+# Cervello 🔍 AI-Powered Real-Time RAG System with Ticketing and Multimodal Support
 
 This project is a real-time Retrieval-Augmented Generation (RAG) system, powered by OpenAI's LLMs, integrated with a FastAPI backend and a multimodal ingestion pipeline. It enables users to interact with enterprise knowledge through document upload, querying, and support ticketing, all while leveraging vector search via Qdrant.
 
