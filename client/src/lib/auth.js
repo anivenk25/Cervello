@@ -1,10 +1,12 @@
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import { getServerSession } from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
-import clientPromise from "./db";
+import { clientPromise } from "./db"; // Note: Change to destructured import
 
 export const authOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+  adapter: MongoDBAdapter(clientPromise, {
+    databaseName: "ISM" // Explicitly specify the database name
+  }),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -33,7 +35,7 @@ export const authOptions = {
     async jwt({ token, user, account, profile }) {
       // Initial sign in
       if (account && profile) {
-        token.role = user.role;
+        token.role = user?.role;
         token.email_verified = profile.email_verified;
         token.picture = profile.picture;
       }

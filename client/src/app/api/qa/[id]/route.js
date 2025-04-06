@@ -1,48 +1,127 @@
 // src/app/api/qa/[id]/route.js
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
-import mongoose from 'mongoose';
+import Query from '@/models/query';
 
-// Define a schema for your queries if you don't have one already
-const querySchema = new mongoose.Schema({
-  question: String,
-  answer: String,
-  sources: Array,
-  userId: mongoose.Schema.Types.ObjectId,
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-const Query = mongoose.models.Query || mongoose.model('Query', querySchema);
-
-export async function GET(req, { params }) {
+export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
     await dbConnect();
     
     const { id } = params;
     
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return Response.json({ error: 'Invalid query ID' }, { status: 400 });
+    const query = await Query.findById(id);
+    
+    if (!query) {
+      return NextResponse.json({ error: 'Query not found' }, { status: 404 });
     }
+    
+    // Check if this query belongs to the current user
+    if (query.userId.toString() !== session.user.id) {
+      return NextResponse.json({ error: 'Not authorized to access this query' }, { status: 403 });
+    }
+    
+    return NextResponse.json(query);
+  } catch (error) {
+    console.error('Error fetching query:', error);
+    return NextResponse.json({ error: 'Failed to fetch query' }, { status: 500 });
+  }
+}
+
+export async function PUT(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    await dbConnect();
+    
+    const { id } = params;
+    const body = await request.json();
     
     const query = await Query.findById(id);
     
     if (!query) {
-      return Response.json({ error: 'Query not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Query not found' }, { status: 404 });
     }
     
-    return Response.json(query);
+    // Check if this query belongs to the current user
+    if (query.userId.toString() !== session.user.id) {
+      return NextResponse.json({ error: 'Not authorized to modify this query' }, { status: 403 });
+    }
+    
+    // Update feedback
+    if (body.feedback) {
+      query.feedback = {
+        rating: body.feedback.rating,
+        comment: body.feedback.comment,
+        timestamp: new Date()
+      };
+    }
+    
+    // Update other fields if needed
+    if (body.tags) {
+      query.tags = body.tags;
+    }
+    
+    await query.save();
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Query updated successfully',
+      query: {
+        id: query._id,
+        question: query.question,
+        answer: query.answer,
+        feedback: query.feedback
+      }
+    });
   } catch (error) {
-    console.error('Error fetching query:', error);
-    return Response.json({ error: 'Failed to fetch query' }, { status: 500 });
+    console.error('Error updating query:', error);
+    return NextResponse.json({ error: 'Failed to update query' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    await dbConnect();
+    
+    const { id } = params;
+    
+    const query = await Query.findById(id);
+    
+    if (!query) {
+      return NextResponse.json({ error: 'Query not found' }, { status: 404 });
+    }
+    
+    // Check if this query belongs to the current user
+    if (query.userId.toString() !== session.user.id) {
+      return NextResponse.json({ error: 'Not authorized to delete this query' }, { status: 403 });
+    }
+    
+    await Query.findByIdAndDelete(id);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Query deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting query:', error);
+    return NextResponse.json({ error: 'Failed to delete query' }, { status: 500 });
   }
 }

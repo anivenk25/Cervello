@@ -5,17 +5,52 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { XMarkIcon, MagnifyingGlassIcon, DocumentTextIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { formatDate, truncateText } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth'; // Import auth hook
 
 export function Sidebar({ 
   isOpen = true, 
-  onClose, 
-  history = [], 
+  onClose,
   onHistoryItemClick,
   className = ''
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredHistory, setFilteredHistory] = useState(history);
+  const [history, setHistory] = useState([]);
+  const [filteredHistory, setFilteredHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const pathname = usePathname();
+  const { user } = useAuth(); // Get authenticated user
+  
+  // Fetch user history from the database
+  useEffect(() => {
+    const fetchUserHistory = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        // Fetch history with pagination
+        const response = await fetch('/api/qa/history?limit=50&page=1');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch history');
+        }
+        
+        const data = await response.json();
+        setHistory(data.history || []);
+        setFilteredHistory(data.history || []);
+      } catch (err) {
+        console.error('Error fetching user history:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserHistory();
+  }, [user]);
   
   // Update filtered history when search query or history changes
   useEffect(() => {
@@ -97,6 +132,8 @@ export function Sidebar({
                 onClose();
               }}
               isActivePath={isActivePath}
+              isLoading={isLoading}
+              error={error}
             />
           </div>
         </aside>
@@ -121,6 +158,8 @@ export function Sidebar({
           historyByDate={historyByDate}
           onHistoryItemClick={onHistoryItemClick}
           isActivePath={isActivePath}
+          isLoading={isLoading}
+          error={error}
         />
       </div>
     </aside>
@@ -133,7 +172,9 @@ function SidebarContent({
   setSearchQuery, 
   historyByDate, 
   onHistoryItemClick,
-  isActivePath
+  isActivePath,
+  isLoading,
+  error
 }) {
   return (
     <>
@@ -170,7 +211,15 @@ function SidebarContent({
       
       {/* History section */}
       <div className="flex-1 overflow-y-auto px-2 py-4">
-        {Object.keys(historyByDate).length > 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : error ? (
+          <div className="px-3 py-4 text-sm text-red-500">
+            Error loading history: {error}
+          </div>
+        ) : Object.keys(historyByDate).length > 0 ? (
           Object.entries(historyByDate).map(([date, items]) => (
             <div key={date} className="mb-6">
               <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
