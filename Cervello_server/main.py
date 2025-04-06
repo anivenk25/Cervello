@@ -52,9 +52,9 @@ class PromptItem(BaseModel):
 
 class CreateTicketRequest(BaseModel):
     userId: str
-    promptHistory: List[PromptItem]
-    lowConfidenceReason: str = None
-    createdBySystem: bool = False
+    # promptHistory: List[PromptItem]
+    # lowConfidenceReason: str = None
+    # createdBySystem: bool = False
 
 
 # --- EMBEDDING MODEL ---
@@ -286,23 +286,27 @@ def delete_entry_by_similarity(data: dict):
 
 # --- Ticket Creation Endpoint ---
 @app.post("/create-ticket")
-def create_ticket(payload: CreateTicketRequest):
-    ticket_id = str(uuid4())
+def create_ticket(payload: dict):
+    ticket_id = "1234"
 
     ticket_data = {
         "ticketId": ticket_id,
-        "userId": payload.userId,
-        "promptHistory": [item.model_dump() for item in payload.promptHistory],
+        "userId": payload["userId"],
+        #"promptHistory": [item.model_dump() for item in payload.promptHistory],
         "status": "open",
         "createdAt": datetime.now(),
         "updatedAt": datetime.now(),
-        "metadata": {
-            "lowConfidenceReason": payload.lowConfidenceReason,
-            "createdBySystem": payload.createdBySystem
-        }
+        # "metadata": {
+        #     "lowConfidenceReason": payload.lowConfidenceReason,
+        #     "createdBySystem": payload.createdBySystem
+        # }
     }
 
     try:
+        client = MongoClient(MONGO_URI)
+        mongo_db = client["nitrous"]
+        tickets_collection = mongo_db["tickets"]
+
         tickets_collection.insert_one(ticket_data)
         return {"message": "Ticket created", "ticketId": ticket_id}
     except Exception as e:
@@ -312,7 +316,7 @@ def create_ticket(payload: CreateTicketRequest):
 @app.get("/tickets")
 def get_tickets():
     try:
-        tickets = list(tickets_collection.find({}, {"_id": 0}))  # Exclude MongoDB's internal `_id` field
+        tickets = list(tickets_collection.find({}, {"_id": 0}))
         return {"tickets": tickets}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
