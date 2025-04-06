@@ -70,6 +70,7 @@ from bson import ObjectId
 
 def serialize_ticket(ticket):
     ticket["_id"] = str(ticket["_id"])
+    return ticket
 
 @app.get("/tickets")
 async def getTickets():
