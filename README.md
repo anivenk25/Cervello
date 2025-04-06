@@ -60,7 +60,7 @@ Handles file ingestion and embedding:
 
 ### 1. 📥 Clone the Repo
 ```bash
-git clone https://github.com/<your-org>/rag-multimodal-assistant.git
+git clone https://github.com/anivenk25/Cervello.git
 cd rag-multimodal-assistant
 ```
 
