@@ -6,3 +6,27 @@ qdrant-client
 python-dotenv
 pydantic
 numpy
+pathway[all]
+
+langchain
+langchain-core
+langchain-community
+langchainhub
+langchain-openai
+langgraph
+
+pydantic>=2.7.4,<3.0.0
+pydantic-settings
+pydantic-settings[dotenv,env-file,dotenv-file,env,dotenv]
+spacy
+pytesseract
+
+pdfplumber
+python-docx
+Pillow
+
+# Qdrant vector database
+qdrant-client
+
+# Environment variable loading
+python-dotenv
