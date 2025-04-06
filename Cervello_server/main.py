@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 from uuid import uuid4
+from datetime import datetime
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -11,6 +12,15 @@ import time
 from fastapi import HTTPException
 from qdrant_client.http.models import PointIdsList
 from controllers import fetch_context
+from fastapi import FastAPI
+# from api.endpoints.tickets import create_ticket
+# from api.endpoints.tickets import router as tickets_router  # Import the router
+from pymongo import MongoClient
+from typing import List
+
+
+# initiate server
+app = FastAPI()
 
 
 load_dotenv()
@@ -20,10 +30,31 @@ qdrant_url = os.getenv("QDRANT_HOST")
 qdrant_key = os.getenv("QDRANT_API_KEY")
 qdrant_collection = "my_collection"
 
+# mongo setup
+MONGO_URI = os.getenv("MONGO_URI", "your-mongodb-connection-string")
+
+# --- MongoDB Setup ---
+client = MongoClient(MONGO_URI)
+mongo_db = client["nitrous"]
+tickets_collection = mongo_db["tickets"]
+
+
+# --- Models ---
 from pydantic import BaseModel
 
 class PromptRequest(BaseModel):
     prompt: str
+
+class PromptItem(BaseModel):
+    message: str
+    role: str  # "user" or "assistant"
+    timestamp: str
+
+class CreateTicketRequest(BaseModel):
+    userId: str
+    promptHistory: List[PromptItem]
+    lowConfidenceReason: str = None
+    createdBySystem: bool = False
 
 
 # --- EMBEDDING MODEL ---
@@ -43,12 +74,12 @@ if not qdrant_client.collection_exists(qdrant_collection):
         vectors_config=VectorParams(size=vector_dim, distance=Distance.COSINE),
     )
 
+
+
 # --- FASTAPI SERVER ---
 
 from fastapi import HTTPException
 
-
-app = FastAPI()
 
 @app.post("/llm-query")
 def fetch_with_context(request: PromptRequest):
@@ -99,6 +130,7 @@ def fetch_with_context(request: PromptRequest):
 
 
 # app.include_router(fetch_context.router)
+# app.include_router(tickets_router, prefix="/api/tickets")
 
 class Query(BaseModel):
     question: str
@@ -250,3 +282,44 @@ def delete_entry_by_similarity(data: dict):
         return {"message": "Entry deleted.", "id": target_id, "similarity": similarity}
     else:
         return {"message": "No similar entry above threshold.", "similarity": similarity}
+
+
+# --- Ticket Creation Endpoint ---
+
+@app.post("/myticket")
+async def createTicket(req: CreateTicketRequest):
+    ticket_id = str(uuid4())
+
+    ticket_data = {
+        "ticketId": ticket_id,
+        "userId": req.userId,
+        "promptHistory": [item.model_dump() for item in req.promptHistory],
+        "status": "open",
+        "createdAt": datetime.now(),
+        "updatedAt": datetime.now(),
+        "metadata": {
+            "lowConfidenceReason": req.lowConfidenceReason,
+            "createdBySystem": req.createdBySystem
+        }
+    }
+
+    try:
+        # Connect to MongoDB
+        client = MongoClient(MONGO_URI)
+        mongo_db = client["nitrous"]
+        tickets_collection = mongo_db["tickets"]
+
+        # Insert ticket into the database
+        tickets_collection.insert_one(ticket_data)
+        return {"message": "Ticket created", "ticketId": ticket_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# --- Example Endpoint to Fetch Tickets ---
+@app.get("/tickets")
+def get_tickets():
+    try:
+        tickets = list(tickets_collection.find({}, {"_id": 0}))
+        return {"tickets": tickets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
