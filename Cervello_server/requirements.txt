@@ -13,3 +13,21 @@ python-dotenv
 pydantic
 numpy
 pymongo
+
+spacy
+pytesseract
+pdfplumber
+python-docx
+Pillow
+
+langchain
+langchain-core
+langchain-community
+langchainhub
+langchain-openai
+langgraph
+
+pydantic-settings
+
+# Pathway RAG + Streaming
+pathway[all]
