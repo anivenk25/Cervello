@@ -5,14 +5,19 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 from qdrant_client.http.models import PointIdsList
 from uuid import uuid4
+from datetime import datetime
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import time
 import json
 from typing import List, Dict, Any, Optional
+from pymongo import MongoClient
+
 
 load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI", "your-mongodb-connection-string")
 
 # Environment variables
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -536,6 +541,39 @@ async def delete_entry_by_similarity(data: DeleteRequest):
     result = delete_similar_embedding(data.text)
     return result
 
+# ticket creation
+
+@app.post("/myticket")
+async def createTicket(req: CreateTicketRequest):
+    ticket_id = str(uuid4())
+
+    ticket_data = {
+        "ticketId": ticket_id,
+        "userId": req.userId,
+        "promptHistory": [item.model_dump() for item in req.promptHistory],
+        "status": "open",
+        "createdAt": datetime.now(),
+        "updatedAt": datetime.now(),
+        "metadata": {
+            "lowConfidenceReason": req.lowConfidenceReason,
+            "createdBySystem": req.createdBySystem
+        }
+    }
+
+    try:
+        # Connect to MongoDB
+        client = MongoClient(MONGO_URI)
+        mongo_db = client["nitrous"]
+        tickets_collection = mongo_db["tickets"]
+
+        # Insert ticket into the database
+        tickets_collection.insert_one(ticket_data)
+        return {"message": "Ticket created", "ticketId": ticket_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    

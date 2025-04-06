@@ -52,9 +52,9 @@ class PromptItem(BaseModel):
 
 class CreateTicketRequest(BaseModel):
     userId: str
-    # promptHistory: List[PromptItem]
-    # lowConfidenceReason: str = None
-    # createdBySystem: bool = False
+    promptHistory: List[PromptItem]
+    lowConfidenceReason: str = None
+    createdBySystem: bool = False
 
 
 # --- EMBEDDING MODEL ---
@@ -285,28 +285,31 @@ def delete_entry_by_similarity(data: dict):
 
 
 # --- Ticket Creation Endpoint ---
-@app.post("/create-ticket")
-def create_ticket(payload: dict):
-    ticket_id = "1234"
+
+@app.post("/myticket")
+async def createTicket(req: CreateTicketRequest):
+    ticket_id = str(uuid4())
 
     ticket_data = {
         "ticketId": ticket_id,
-        "userId": payload["userId"],
-        #"promptHistory": [item.model_dump() for item in payload.promptHistory],
+        "userId": req.userId,
+        "promptHistory": [item.model_dump() for item in req.promptHistory],
         "status": "open",
         "createdAt": datetime.now(),
         "updatedAt": datetime.now(),
-        # "metadata": {
-        #     "lowConfidenceReason": payload.lowConfidenceReason,
-        #     "createdBySystem": payload.createdBySystem
-        # }
+        "metadata": {
+            "lowConfidenceReason": req.lowConfidenceReason,
+            "createdBySystem": req.createdBySystem
+        }
     }
 
     try:
+        # Connect to MongoDB
         client = MongoClient(MONGO_URI)
         mongo_db = client["nitrous"]
         tickets_collection = mongo_db["tickets"]
 
+        # Insert ticket into the database
         tickets_collection.insert_one(ticket_data)
         return {"message": "Ticket created", "ticketId": ticket_id}
     except Exception as e:
