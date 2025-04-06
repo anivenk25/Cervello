@@ -482,10 +482,34 @@ async def mcp_query(request: AgentRequest):
     # If no tool calls, just return the response
     return AgentResponse(response=message.content)
 
-# Keep the original API endpoints for backward compatibility
+# confidence level check n ticket suggestion
+from pymongo import MongoClient
+from datetime import datetime, timedelta
+
+# MongoDB setup for queries
+MONGODB_QUERIES_URI = os.getenv("MONGODB_QUERIES_URI")
+queries_client = MongoClient(MONGODB_QUERIES_URI)
+queries_db = queries_client["ISM"]
+queries_collection = queries_db["queries"]
+
 @app.post("/llm-query")
-async def fetch_with_context(request: PromptRequest):
+def fetch_with_context(request: PromptRequest):
     try:
+        user_id = "67f05d187c14529f77f020c0"
+        current_time = datetime.now()
+        one_minute_ago = current_time - timedelta(minutes=1)
+
+        # Fetch the number of queries made by the user in the last 1 minute
+        query_count = queries_collection.count_documents({
+            "userId": user_id,
+            "timestamp": {"$gte": one_minute_ago}
+        })
+
+        # Check if the query count exceeds 5
+        if query_count > 5:
+            return {"response": "You might need to create a ticket for further assistance."}
+
+        # Proceed with the normal flow if query count is within the limit
         prompt = request.prompt
         prompt_vector = embedding_model.encode(prompt).tolist()
 
@@ -541,39 +565,3 @@ async def delete_entry_by_similarity(data: DeleteRequest):
     result = delete_similar_embedding(data.text)
     return result
 
-# ticket creation
-
-@app.post("/myticket")
-async def createTicket(req: CreateTicketRequest):
-    ticket_id = str(uuid4())
-
-    ticket_data = {
-        "ticketId": ticket_id,
-        "userId": req.userId,
-        "promptHistory": [item.model_dump() for item in req.promptHistory],
-        "status": "open",
-        "createdAt": datetime.now(),
-        "updatedAt": datetime.now(),
-        "metadata": {
-            "lowConfidenceReason": req.lowConfidenceReason,
-            "createdBySystem": req.createdBySystem
-        }
-    }
-
-    try:
-        # Connect to MongoDB
-        client = MongoClient(MONGO_URI)
-        mongo_db = client["nitrous"]
-        tickets_collection = mongo_db["tickets"]
-
-        # Insert ticket into the database
-        tickets_collection.insert_one(ticket_data)
-        return {"message": "Ticket created", "ticketId": ticket_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    
