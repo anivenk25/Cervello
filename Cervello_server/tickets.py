@@ -32,7 +32,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 # FastAPI app
 app = FastAPI()
 
-@app.post("/myticket")
+@app.post("/create-ticket")
 async def createTicket(req: CreateTicketRequest):
     ticket_id = str(uuid4())
 
@@ -61,6 +61,42 @@ async def createTicket(req: CreateTicketRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+# write endpoint to get all tickets
+from bson import ObjectId
+
+def serialize_ticket(ticket):
+    ticket["_id"] = str(ticket["_id"])
+
+@app.get("/tickets")
+async def getTickets():
+    try:
+        # Connect to MongoDB
+        client = MongoClient(MONGO_URI)
+        mongo_db = client["nitrous"]
+        tickets_collection = mongo_db["tickets"]
+
+        # Get all tickets from the database
+        tickets = list(tickets_collection.find())
+        serialized_tickets = [serialize_ticket(ticket) for ticket in tickets]  # Serialize tickets
+        return {"tickets": serialized_tickets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+# get tickets by userId
+@app.get("/tickets/{userId}")
+async def getTicketsByUserId(userId: str):
+    try:
+        # Connect to MongoDB
+        client = MongoClient(MONGO_URI)
+        mongo_db = client["nitrous"]
+        tickets_collection = mongo_db["tickets"]
+
+        # Get tickets by userId from the database
+        tickets = list(tickets_collection.find({"userId": userId}))
+        serialized_tickets = [serialize_ticket(ticket) for ticket in tickets]  # Serialize tickets
+        return {"tickets": serialized_tickets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -40,3 +40,24 @@ def create_ticket(payload: CreateTicketRequest):
         return {"message": "Ticket created", "ticketId": ticket_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# write a function to get all tickets
+
+@router.get("/tickets")
+def get_tickets():
+    try:
+        tickets = list(tickets_collection.find({}))
+        return {"tickets": tickets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+# write a function to get a ticket by id
+@router.get("/ticket/{ticket_id}")
+def get_ticket(ticket_id: str):
+    try:
+        ticket = tickets_collection.find_one({"ticketId": ticket_id})
+        if ticket:
+            return ticket
+        else:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
