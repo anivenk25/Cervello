@@ -1,4 +1,5 @@
-# Cervello 🔍 AI-Powered Real-Time RAG System with Ticketing and Multimodal Support
+
+# Cerevello : AI-Powered Real-Time RAG System with Ticketing and Multimodal Support
 
 This project is a real-time Retrieval-Augmented Generation (RAG) system, powered by OpenAI's LLMs, integrated with a FastAPI backend and a multimodal ingestion pipeline. It enables users to interact with enterprise knowledge through document upload, querying, and support ticketing, all while leveraging vector search via Qdrant.
 
@@ -61,3 +62,126 @@ Handles file ingestion and embedding:
 ```bash
 git clone https://github.com/<your-org>/rag-multimodal-assistant.git
 cd rag-multimodal-assistant
+```
+
+### 2. 📦 Install Dependencies
+
+We use `Poetry` for dependency management.
+
+> Ensure Python >= 3.10 is installed.
+
+```bash
+poetry install
+```
+
+If using a specific group:
+```bash
+poetry install --with linters
+```
+
+### 3. 🔐 Setup Environment Variables
+
+Create a `.env` file in the root and configure:
+
+```env
+OPENAI_API_KEY=your_openai_key
+QDRANT_API_KEY=your_qdrant_key
+QDRANT_URL=https://your-qdrant-url
+MONGO_URI=mongodb+srv://...
+```
+
+---
+
+## 📂 Directory Structure
+
+```
+.
+├── main_app/
+│   ├── app.py                 # FastAPI RAG endpoints
+│   ├── ingestion/             # File parsing and embedding
+│   └── agents/                # OpenAI agent tools
+├── tickets/
+│   └── tickets.py             # Ticketing FastAPI service
+├── examples/
+│   └── gpt_4o_multimodal_rag/ # Demo apps and workflows
+├── .env                       # Environment variables
+├── pyproject.toml             # Poetry config
+└── README.md
+```
+
+---
+
+## 🧪 How to Use
+
+### ➕ Upload Documents
+
+- Send `.pdf`, `.docx`, or `.png` files to the `/upload` endpoint.
+- Text will be extracted and embedded via OpenAI.
+- Stored in Qdrant for semantic retrieval.
+
+### 🔍 Search with RAG
+
+- Hit `/query` with a natural language question.
+- Top-k relevant documents retrieved from Qdrant.
+- OpenAI responds with a generated answer.
+
+### 🧠 Agent Mode
+
+- Use `/mcp/query` for enhanced query with tool calling.
+- OpenAI auto-selects appropriate tool like upload/search/update.
+
+### 🎫 Create Tickets
+
+- The system may suggest creating a ticket.
+- User can edit and submit via `/create-ticket`.
+- Stored in MongoDB and retrievable anytime.
+
+---
+
+## 📌 Requirements
+
+- Python ≥ 3.10
+- Poetry
+- MongoDB Atlas account
+- Qdrant Cloud account
+- OpenAI API Key
+
+---
+
+## 🛠️ Tech Stack
+
+| Component           | Technology                   |
+|---------------------|------------------------------|
+| API Backend         | FastAPI                      |
+| Vector Store        | Qdrant                       |
+| Embeddings          | OpenAI `text-embedding-3-small` |
+| Agent LLM           | OpenAI GPT-3.5/GPT-4o        |
+| Database            | MongoDB Atlas                |
+| Text Parsing        | Pathway, pytesseract, python-docx |
+| Frontend Client     | (Optional) Chat interface or Postman |
+
+---
+
+## 👥 Contributing
+
+We welcome PRs, feedback, and issues. Please:
+
+1. Fork this repo
+2. Create a new branch
+3. Push your changes
+4. Open a Pull Request
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 📫 Contact
+
+Feel free to reach out with questions or collaboration requests:
+
+- Project Lead: [Rishi Das](rishikakalidas@gmail.com)
+- Organization: Cerevello
