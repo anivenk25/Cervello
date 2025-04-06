@@ -49,6 +49,45 @@ export default function AnswerDisplay({ answer, sources = [], isLoading, error, 
     }
   };
 
+  // Handle ticket creation
+  const handleCreateTicket = () => {
+    if (!queryId) return;
+    
+    try {
+      // You can add your API call here if needed
+      toast.success('Ticket action triggered');
+      
+      // Example of how you might call an API:
+      /*
+      fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          queryId,
+          userId: session?.user?.id,
+          question: document.querySelector('p.text-lg')?.textContent || 'No question available',
+          answer: answer || 'No answer available'
+        }),
+      })
+      .then(response => {
+        if (response.ok) {
+          toast.success('Ticket created successfully');
+        } else {
+          toast.error('Failed to create ticket');
+        }
+      })
+      .catch(error => {
+        console.error('Error creating ticket:', error);
+        toast.error('Error creating ticket');
+      });
+      */
+    } catch (error) {
+      console.error('Error handling ticket action:', error);
+    }
+  };
+
   if (error) {
     return (
       <div className="p-4 bg-[#420D0D] border border-[#991B1B] text-red-400 rounded-xl">
@@ -114,59 +153,76 @@ export default function AnswerDisplay({ answer, sources = [], isLoading, error, 
           </div>
         )}
         
-        {/* Feedback section */}
-        {answer && !isLoading && queryId && !feedback && (
-          <div className="mt-6 pt-4 border-t border-[#2d3748]">
-            <div className="text-xs sm:text-sm">
-              <p className="text-white/60 mb-2">Was this answer helpful?</p>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => submitFeedback(5)}
-                  className="p-1 text-white/60 hover:text-[#3b82f6] transition-colors"
-                  aria-label="Very helpful"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setShowFeedbackForm(true)}
-                  className="p-1 text-white/60 hover:text-red-500 transition-colors"
-                  aria-label="Not helpful"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            {showFeedbackForm && (
-              <div className="mt-4">
-                <textarea
-                  value={feedbackComment}
-                  onChange={(e) => setFeedbackComment(e.target.value)}
-                  placeholder="What could be improved?"
-                  rows={3}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-[#2d3748] rounded-md bg-[#0a0e17] text-white placeholder:text-white/40 focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]"
-                />
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-2">
+        {/* Action buttons section */}
+        {answer && !isLoading && queryId && (
+          <div className="mt-6 pt-4 border-t border-[#2d3748] flex flex-wrap justify-between items-center">
+            {/* Feedback buttons */}
+            {!feedback && (
+              <div className="text-xs sm:text-sm">
+                <p className="text-white/60 mb-2">Was this answer helpful?</p>
+                <div className="flex space-x-2">
                   <button
-                    onClick={() => submitFeedback(1)}
-                    disabled={isFeedbackSubmitting}
-                    className="px-3 py-1 text-xs sm:text-sm text-white bg-red-600 rounded-md hover:bg-red-700 transition disabled:opacity-50"
+                    onClick={() => submitFeedback(5)}
+                    className="p-1 text-white/60 hover:text-[#3b82f6] transition-colors"
+                    aria-label="Very helpful"
                   >
-                    {isFeedbackSubmitting ? 'Submitting...' : 'Submit Feedback'}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                    </svg>
                   </button>
                   <button
-                    onClick={() => setShowFeedbackForm(false)}
-                    className="px-3 py-1 text-xs sm:text-sm border border-[#2d3748] rounded-md hover:bg-[#1e293b] transition"
+                    onClick={() => setShowFeedbackForm(true)}
+                    className="p-1 text-white/60 hover:text-red-500 transition-colors"
+                    aria-label="Not helpful"
                   >
-                    Cancel
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2" />
+                    </svg>
                   </button>
                 </div>
               </div>
             )}
+            
+            {/* Ticket button */}
+            <button
+              onClick={handleCreateTicket}
+              className="px-3 py-1 text-xs sm:text-sm text-white bg-[#3b82f6] rounded-md hover:bg-[#2563eb] transition"
+            >
+              <span className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                Create Ticket
+              </span>
+            </button>
+          </div>
+        )}
+        
+        {/* Feedback form */}
+        {showFeedbackForm && (
+          <div className="mt-4">
+            <textarea
+              value={feedbackComment}
+              onChange={(e) => setFeedbackComment(e.target.value)}
+              placeholder="What could be improved?"
+              rows={3}
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-[#2d3748] rounded-md bg-[#0a0e17] text-white placeholder:text-white/40 focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]"
+            />
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-2">
+              <button
+                onClick={() => submitFeedback(1)}
+                disabled={isFeedbackSubmitting}
+                className="px-3 py-1 text-xs sm:text-sm text-white bg-red-600 rounded-md hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {isFeedbackSubmitting ? 'Submitting...' : 'Submit Feedback'}
+              </button>
+              <button
+                onClick={() => setShowFeedbackForm(false)}
+                className="px-3 py-1 text-xs sm:text-sm border border-[#2d3748] rounded-md hover:bg-[#1e293b] transition"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
         

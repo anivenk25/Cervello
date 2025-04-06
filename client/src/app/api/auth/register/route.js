@@ -5,22 +5,22 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request) {
   try {
-    // Connect to database
+    // Connect to the database
     await dbConnect();
-    
-    // Get request body
+
+    // Parse request body
     const body = await request.json();
     const { name, email, password } = body;
-    
-    // Validate input
+
+    // Basic validation
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
-    
-    // Check if email is already in use
+
+    // Check if user with the same email exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
@@ -28,19 +28,22 @@ export async function POST(request) {
         { status: 409 }
       );
     }
-    
-    // Hash password
+
+    // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    
-    // Create user
-    const user = await User.create({
+
+    // Create a new user instance
+    const user = new User({
       name,
       email,
       password: hashedPassword,
     });
-    
-    // Return success without exposing password
+
+    // Save user to the database
+    await user.save();
+
+    // Respond with success (exclude password)
     return NextResponse.json({
       success: true,
       user: {
