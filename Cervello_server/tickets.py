@@ -10,19 +10,17 @@ import os
 # Load environment variables from .env file
 dotenv.load_dotenv()
 
-class PromptRequest(BaseModel):
-    prompt: str
+# class PromptRequest(BaseModel):
+#     prompt: str
 
 class PromptItem(BaseModel):
     message: str
-    role: str  # "user" or "assistant"
-    timestamp: str
+    timestamp: str = str(datetime.now().isoformat())
 
 class CreateTicketRequest(BaseModel):
     userId: str
     promptHistory: List[PromptItem]
     lowConfidenceReason: str = None
-    createdBySystem: bool = False
 
 
 
@@ -42,10 +40,8 @@ async def createTicket(req: CreateTicketRequest):
         "promptHistory": [item.model_dump() for item in req.promptHistory],
         "status": "open",
         "createdAt": datetime.now(),
-        "updatedAt": datetime.now(),
         "metadata": {
-            "lowConfidenceReason": req.lowConfidenceReason,
-            "createdBySystem": req.createdBySystem
+            "lowConfidenceReason": req.lowConfidenceReason
         }
     }
 
