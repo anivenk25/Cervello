@@ -61,33 +61,65 @@ Handles file ingestion and embedding:
 ### 1. 📥 Clone the Repo
 ```bash
 git clone https://github.com/anivenk25/Cervello.git
-cd rag-multimodal-assistant
+cd Cervello_server
 ```
 
 ### 2. 📦 Install Dependencies
 
-We use `Poetry` for dependency management.
+We use `uv` for virtual env management.
 
 > Ensure Python >= 3.10 is installed.
 
+- For macOs/Linux
 ```bash
-poetry install
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-
-If using a specific group:
+- For windows
 ```bash
-poetry install --with linters
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+- Using pip
+```bash
+pip install uv
 ```
 
 ### 3. 🔐 Setup Environment Variables
 
-Create a `.env` file in the root and configure:
+Create a `.env` file in the root and configure: (refer to env.local
 
 ```env
 OPENAI_API_KEY=your_openai_key
 QDRANT_API_KEY=your_qdrant_key
 QDRANT_URL=https://your-qdrant-url
 MONGO_URI=mongodb+srv://...
+```
+
+### 4. 🔐 Activate virtual env
+- For windows
+```bash
+.venv\Scripts\activate
+```
+- For Linux
+```bash
+source .venv/bin/activate
+```
+
+### 5. Install dependencies
+
+```bash
+uv pip install -r requirements.txt
+```
+
+### 5. Run the venv
+1. To run the server for queries and db updation/deletion
+
+```bash
+uvicorn mcp_server:app --reload --log-level debug
+```
+1. To run the server for ticketing
+
+```bash
+uvicorn tickets:app --reload --log-level debug
 ```
 
 ---
@@ -100,6 +132,8 @@ MONGO_URI=mongodb+srv://...
 │   ├── app.py                 # FastAPI RAG endpoints
 │   ├── ingestion/             # File parsing and embedding
 │   └── agents/                # OpenAI agent tools
+|   └── tickets.py
+|   └── mcp_server.py 
 ├── tickets/
 │   └── tickets.py             # Ticketing FastAPI service
 ├── examples/
@@ -183,6 +217,7 @@ MIT License
 
 Feel free to reach out with questions or collaboration requests:
 
+- [Srishty M](https://github.com/Srish-ty)
 - [Anirudh Venkateswaran](anirudhvenk25@gmail.com)
 - [Rishi Das](rishikakalidas@gmail.com)
 - Organization: Cerevello
