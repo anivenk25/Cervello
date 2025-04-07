@@ -183,5 +183,6 @@ MIT License
 
 Feel free to reach out with questions or collaboration requests:
 
-- Project Lead: [Rishi Das](rishikakalidas@gmail.com)
+- [Anirudh Venkateswaran](anirudhvenk25@gmail.com)
+- [Rishi Das](rishikakalidas@gmail.com)
 - Organization: Cerevello
