@@ -5,19 +5,14 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 from qdrant_client.http.models import PointIdsList
 from uuid import uuid4
-from datetime import datetime
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import time
 import json
 from typing import List, Dict, Any, Optional
-from pymongo import MongoClient
-
 
 load_dotenv()
-
-MONGO_URI = os.getenv("MONGO_URI", "your-mongodb-connection-string")
 
 # Environment variables
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -89,7 +84,7 @@ def search_similar_embeddings(query_text: str, limit: int = 10):
     )
     return search_result
 
-def add_embedding(text: str, custom_id: str = None):
+def add_embedding(text: str, custom_id: str = ""):
     """Add a new embedding to the vector database."""
     vector = embedding_model.encode(text).tolist()
     point_id = str(uuid4())
@@ -109,7 +104,7 @@ def add_embedding(text: str, custom_id: str = None):
     )
     return point_id
 
-def update_similar_embedding(text: str, custom_id: str = None):
+def update_similar_embedding(text: str, custom_id: str = ""):
     """Update the most similar embedding if similarity is above threshold."""
     vector = embedding_model.encode(text).tolist()
     results = qdrant_client.search(
@@ -482,34 +477,10 @@ async def mcp_query(request: AgentRequest):
     # If no tool calls, just return the response
     return AgentResponse(response=message.content)
 
-# confidence level check n ticket suggestion
-from pymongo import MongoClient
-from datetime import datetime, timedelta
-
-# MongoDB setup for queries
-MONGODB_QUERIES_URI = os.getenv("MONGODB_QUERIES_URI")
-queries_client = MongoClient(MONGODB_QUERIES_URI)
-queries_db = queries_client["ISM"]
-queries_collection = queries_db["queries"]
-
+# Keep the original API endpoints for backward compatibility
 @app.post("/llm-query")
-def fetch_with_context(request: PromptRequest):
+async def fetch_with_context(request: PromptRequest):
     try:
-        user_id = "67f05d187c14529f77f020c0"
-        current_time = datetime.now()
-        one_minute_ago = current_time - timedelta(minutes=1)
-
-        # Fetch the number of queries made by the user in the last 1 minute
-        query_count = queries_collection.count_documents({
-            "userId": user_id,
-            "timestamp": {"$gte": one_minute_ago}
-        })
-
-        # Check if the query count exceeds 5
-        if query_count > 5:
-            return {"response": "You might need to create a ticket for further assistance."}
-
-        # Proceed with the normal flow if query count is within the limit
         prompt = request.prompt
         prompt_vector = embedding_model.encode(prompt).tolist()
 
@@ -565,3 +536,6 @@ async def delete_entry_by_similarity(data: DeleteRequest):
     result = delete_similar_embedding(data.text)
     return result
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
